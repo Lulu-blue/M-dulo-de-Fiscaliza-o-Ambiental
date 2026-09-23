@@ -26,38 +26,46 @@ Como uma ação na tela atravessa o sistema inteiro, do navegador até o banco:
 
 ```mermaid
 flowchart TB
-    subgraph U["👤 Usuários"]
-        G["Gestor"]
-        F["Fiscal"]
+    subgraph U["Usuários"]
+        direction LR
+        G(["👔 Gestor"])
+        F(["🦺 Fiscal"])
+        G ~~~ F
     end
 
-    subgraph FE["🅰️ Frontend — Angular 22 (:4200)"]
-        R["Rotas + authGuard<br/>/gestor · /documentos<br/>/fiscal · /minha-pontuacao"]
-        C["Componentes<br/>(dashboards, previews, upload)"]
-        S["Services HTTP<br/>(auto, relatorio, demanda...)"]
-        I["authInterceptor<br/>injeta Bearer JWT"]
-        R --> C --> S --> I
+    subgraph FE["Frontend · Angular 22 · porta 4200"]
+        direction LR
+        R["Rotas protegidas<br/>authGuard por cargo"] --> C["Telas<br/>dashboards e previews"] --> I["authInterceptor<br/>anexa o JWT"]
     end
 
-    subgraph BE["🍃 Backend — Spring Boot 3 (:8080)"]
-        J["JwtAuthenticationFilter"]
-        SC["SecurityConfig<br/>RBAC por rota"]
-        CT["Controllers<br/>Auth · Gestor · Fiscal · Autos<br/>Relatórios · Imóveis · Anexos"]
-        SV["Services<br/>regras de negócio + checagem de posse"]
-        RP["Repositories<br/>Spring Data JPA"]
-        J --> SC --> CT --> SV --> RP
+    subgraph BE["Backend · Spring Boot 3 · porta 8080"]
+        direction LR
+        J["Filtro JWT +<br/>SecurityConfig"] --> CT["Controllers<br/>REST"] --> SV["Services<br/>regras de negócio"] --> RP["Repositories<br/>JPA"]
     end
 
-    subgraph DB["🐘 PostgreSQL"]
-        T["Tabelas<br/>(schema via Flyway V1–V14)"]
-        FN["gerar_numero_sequencial()<br/>+ numeros_descartados"]
+    subgraph DB["PostgreSQL"]
+        direction LR
+        T[("Tabelas<br/>Flyway V1–V14")]
+        FN[("gerar_numero_sequencial()<br/>numeração atômica")]
+        T ~~~ FN
     end
 
-    G --> R
-    F --> R
-    I -- "REST / JSON" --> J
-    RP --> T
-    SV -. "numeração atômica" .-> FN
+    U --> FE
+    FE == "HTTP · JSON · Bearer token" ==> BE
+    BE ==> DB
+
+    classDef user fill:#7c3aed,stroke:#5b21b6,color:#fff
+    classDef front fill:#dc2626,stroke:#991b1b,color:#fff
+    classDef back fill:#16a34a,stroke:#166534,color:#fff
+    classDef db fill:#2563eb,stroke:#1e40af,color:#fff
+    class G,F user
+    class R,C,I front
+    class J,CT,SV,RP back
+    class T,FN db
+    style U fill:transparent,stroke:#7c3aed,stroke-width:2px
+    style FE fill:transparent,stroke:#dc2626,stroke-width:2px
+    style BE fill:transparent,stroke:#16a34a,stroke-width:2px
+    style DB fill:transparent,stroke:#2563eb,stroke-width:2px
 ```
 
 ## Como rodar o projeto
@@ -192,46 +200,62 @@ Spring Security quanto no `authGuard` do Angular):
 ```mermaid
 sequenceDiagram
     autonumber
-    actor G as Gestor
-    actor F as Fiscal
-    participant API as API Spring Boot
-    participant DB as PostgreSQL
+    actor G as 👔 Gestor
+    actor F as 🦺 Fiscal
+    participant API as ⚙️ API
+    participant DB as 🗄️ Banco
 
-    G->>API: POST /api/gestor/demandas
-    API->>DB: salva Demanda (PENDENTE)
-    G->>API: PUT /demandas/{id}/delegar/{fiscalId}
-    API->>DB: status → EM_ANDAMENTO
-
-    F->>API: GET /api/fiscal/demandas (fila de trabalho)
-    par Auto de Fiscalização
-        F->>API: POST /api/fiscal/autos
-        API->>DB: gerar_numero_sequencial('AUTO_FISCALIZACAO', ano)
-        DB-->>API: nº único
-    and Relatório de Vistoria
-        F->>API: POST /api/fiscal/relatorios
-        API->>DB: gerar_numero_sequencial('RELATORIO', ano)
-        DB-->>API: nº único
+    rect rgba(124, 58, 237, 0.15)
+    Note over G,DB: 1 · Gestor cria e delega
+    G->>API: cria Demanda
+    API->>DB: status PENDENTE
+    G->>API: delega a um Fiscal
+    API->>DB: status EM_ANDAMENTO
     end
-    Note over API,DB: Auto e Relatório sempre apontam<br/>para o mesmo Imóvel
 
-    F->>API: POST .../documento-assinado (Auto e Relatório)
-    API-->>F: +25 pts (Auto) · +60 pts (Relatório)
+    rect rgba(22, 163, 74, 0.15)
+    Note over G,DB: 2 · Fiscal emite os documentos (qualquer ordem)
+    F->>API: emite Auto de Fiscalização
+    API->>DB: gerar_numero_sequencial()
+    DB-->>F: nº oficial do Auto
+    F->>API: emite Relatório de Vistoria
+    API->>DB: gerar_numero_sequencial()
+    DB-->>F: nº oficial do Relatório
+    end
 
-    F->>API: POST /api/fiscal/demandas/{id}/finalizar
-    API->>DB: status → CONCLUIDO (documentos travados)
-    G->>API: GET /api/gestor/ranking-fiscais
+    rect rgba(234, 179, 8, 0.15)
+    Note over G,DB: 3 · Fiscal anexa as versões assinadas
+    F->>API: anexa Auto assinado
+    API-->>F: +25 pontos
+    F->>API: anexa Relatório assinado
+    API-->>F: +60 pontos
+    end
+
+    rect rgba(37, 99, 235, 0.15)
+    Note over G,DB: 4 · Fiscal finaliza, Gestor acompanha
+    F->>API: finaliza Demanda
+    API->>DB: status CONCLUIDO (travada)
+    G->>API: consulta ranking de fiscais
+    end
 ```
 
 O ciclo de vida de uma Demanda, resumido:
 
 ```mermaid
-stateDiagram-v2
-    direction LR
-    [*] --> PENDENTE: Gestor cria
-    PENDENTE --> EM_ANDAMENTO: Gestor delega a um Fiscal
-    EM_ANDAMENTO --> EM_ANDAMENTO: Fiscal emite Auto/Relatório<br/>e anexa os assinados
-    EM_ANDAMENTO --> CONCLUIDO: Fiscal finaliza<br/>(Auto + Relatório assinados)
-    CONCLUIDO --> [*]: somente leitura
+flowchart LR
+    A(["Gestor cria"]) --> P["🟡 PENDENTE"]
+    P -- "Gestor delega<br/>a um Fiscal" --> E["🔵 EM_ANDAMENTO"]
+    E -- "Auto + Relatório<br/>emitidos e assinados" --> C["🟢 CONCLUIDO"]
+    C --> L(["somente leitura"])
+
+    classDef pend fill:#ca8a04,stroke:#854d0e,color:#fff
+    classDef and fill:#2563eb,stroke:#1e40af,color:#fff
+    classDef conc fill:#16a34a,stroke:#166534,color:#fff
+    classDef ponta fill:#6b7280,stroke:#374151,color:#fff
+    class P pend
+    class E and
+    class C conc
+    class A,L ponta
 ```
 
 1. **Gestor cria uma Demanda** (título, descrição, localização/urgência opcionais) e delega a um
@@ -269,28 +293,29 @@ stateDiagram-v2
 
 ```mermaid
 sequenceDiagram
-    participant A as Angular
-    participant Auth as AuthController
-    participant JF as JwtAuthenticationFilter
-    participant SC as SecurityConfig
-    participant C as Controller / Service
+    participant A as 🅰️ Angular
+    participant S as 🔐 Spring Security
+    participant C as ⚙️ Controller / Service
 
-    A->>Auth: POST /api/auth/login (CPF + senha)
-    Auth-->>A: JWT com o cargo (GESTOR ou FISCAL)
-    Note over A: authInterceptor guarda o token e<br/>envia "Authorization: Bearer ..." em toda requisição
+    rect rgba(124, 58, 237, 0.15)
+    Note over A,C: Login
+    A->>S: POST /api/auth/login (CPF + senha)
+    S-->>A: JWT contendo o cargo
+    end
 
-    A->>JF: GET /api/fiscal/autos/por-demanda/{id}
-    JF->>JF: valida assinatura e extrai o cargo
-    JF->>SC: 1ª camada: a rota aceita esse cargo?
-    alt cargo errado
-        SC-->>A: 403 Forbidden
-    else cargo certo
-        SC->>C: 2ª camada: esse usuário é dono do documento?
-        alt não é o criador (e não é Gestor)
-            C-->>A: 403 Forbidden (proteção contra IDOR)
-        else é o criador ou Gestor
-            C-->>A: 200 OK + dados
+    rect rgba(37, 99, 235, 0.15)
+    Note over A,C: Toda requisição seguinte
+    A->>S: requisição + Bearer token
+    alt 1ª camada: cargo não tem acesso à rota
+        S-->>A: ⛔ 403
+    else cargo permitido
+        S->>C: repassa a requisição
+        alt 2ª camada: não é dono do documento
+            C-->>A: ⛔ 403 (bloqueia IDOR)
+        else é o criador ou o Gestor
+            C-->>A: ✅ 200 + dados
         end
+    end
     end
 ```
 
@@ -320,20 +345,41 @@ apontam para o mesmo Imóvel quando emitidos para a mesma Demanda.
 
 ```mermaid
 erDiagram
-    USUARIO ||--o{ DEMANDA : "cria (Gestor)"
-    USUARIO |o--o{ DEMANDA : "recebe (Fiscal)"
-    DEMANDA ||--o| AUTO_FISCALIZACAO : "tem no máx. 1"
-    DEMANDA ||--o| RELATORIO : "tem no máx. 1"
-    DEMANDA ||--o{ ANEXO : possui
-    USUARIO ||--o{ AUTO_FISCALIZACAO : emite
-    USUARIO ||--o{ RELATORIO : emite
-    USUARIO }o--o{ RELATORIO : "participa (fiscais)"
-    USUARIO ||--o{ ANEXO : envia
-    IMOVEL ||--o{ AUTO_FISCALIZACAO : "vistoriado em"
-    IMOVEL ||--o{ RELATORIO : "vistoriado em"
-    CONTRIBUINTE ||--o{ AUTO_FISCALIZACAO : autuado
+    USUARIO ||--o{ DEMANDA : "cria / recebe"
+    DEMANDA ||--o| AUTO_FISCALIZACAO : "até 1"
+    DEMANDA ||--o| RELATORIO : "até 1"
+    DEMANDA ||--o{ ANEXO : "arquivos"
+    IMOVEL ||--o{ AUTO_FISCALIZACAO : "mesmo imóvel"
+    IMOVEL ||--o{ RELATORIO : "mesmo imóvel"
     CONTRIBUINTE |o--o{ IMOVEL : "proprietário"
-    RELATORIO ||--o{ RELATORIO_IMAGEM : fotos
+    CONTRIBUINTE ||--o{ AUTO_FISCALIZACAO : "autuado"
+    RELATORIO ||--o{ RELATORIO_IMAGEM : "fotos"
+
+    USUARIO {
+        string cpf UK
+        string cargo "GESTOR ou FISCAL"
+    }
+    DEMANDA {
+        string titulo
+        string status "PENDENTE, EM_ANDAMENTO, CONCLUIDO"
+    }
+    AUTO_FISCALIZACAO {
+        long numero "único por ano"
+        bool assinado "libera 25 pts"
+    }
+    RELATORIO {
+        long numero "único por ano"
+        bool assinado "libera 60 pts"
+    }
+    IMOVEL {
+        string inscricao_normalizada UK
+    }
+    CONTRIBUINTE {
+        string cpf_cnpj UK
+    }
+    ANEXO {
+        string hash_sha256 UK
+    }
 ```
 
 ## Documentação formal
@@ -454,15 +500,23 @@ excluir, o número sequencial volta para a fila de reuso do banco (`numeros_desc
 de ser desperdiçado.
 
 ```mermaid
-stateDiagram-v2
-    direction LR
-    [*] --> Emitido: Fiscal emite<br/>(recebe nº sequencial)
-    Emitido --> Assinado: anexa documento assinado<br/>(+25 Auto / +60 Relatório)
-    Assinado --> Emitido: remove assinado em até 24h<br/>(pontos estornados)
-    Emitido --> Excluido: exclui documento
-    Excluido --> [*]: nº volta para<br/>numeros_descartados
-    Assinado --> Travado: demanda finalizada
-    Travado --> [*]
+flowchart LR
+    N(["Fiscal emite"]) --> EM["📄 Emitido<br/>recebe nº oficial"]
+    EM -- "anexa o<br/>assinado" --> AS["✍️ Assinado<br/>pontos creditados"]
+    AS -. "remove em<br/>até 24h" .-> EM
+    AS -- "demanda<br/>finalizada" --> TR["🔒 Travado"]
+    EM -- "exclui" --> EX["🗑️ Excluído<br/>nº volta para reuso"]
+
+    classDef ponta fill:#6b7280,stroke:#374151,color:#fff
+    classDef emit fill:#2563eb,stroke:#1e40af,color:#fff
+    classDef ass fill:#16a34a,stroke:#166534,color:#fff
+    classDef trav fill:#7c3aed,stroke:#5b21b6,color:#fff
+    classDef exc fill:#dc2626,stroke:#991b1b,color:#fff
+    class N ponta
+    class EM emit
+    class AS ass
+    class TR trav
+    class EX exc
 ```
 
 Referências de código: `anexarDocumentoAssinado`/`removerDocumentoAssinado`/`excluirAuto`/
