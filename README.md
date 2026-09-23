@@ -14,7 +14,7 @@ oficiais (Auto de Fiscalização e Relatório de Vistoria) com numeração seque
 a versão assinada de cada um, acumula pontos de produtividade, e finaliza a demanda quando tudo
 está concluído.
 
-Foi pensado para demonstrar, num processo seletivo, domínio prático de **Angular** + **Spring
+Foi pensado para demonstrar, domínio prático de **Angular** + **Spring
 Boot** + **PostgreSQL**, com ênfase em pontos técnicos reais: autenticação stateless via JWT com
 controle de acesso por cargo (RBAC) em duas camadas, geração de numeração sequencial **atômica**
 (sem condição de corrida, mesmo com dois fiscais emitindo documentos no mesmo milissegundo), e
