@@ -1,0 +1,115 @@
+<div class="auto-doc documento-imprimivel">
+  <app-documento-header></app-documento-header>
+
+  <h2 class="auto-doc-titulo">AUTO DE FISCALIZAÇÃO – Nº {{ auto.numeroSequencial }}/{{ auto.ano }}</h2>
+  <h3 class="auto-doc-subtitulo">Fiscalização Ambiental</h3>
+  <p class="auto-doc-data">{{ auto.dataGeracao | date:'dd/MM/yyyy' }}</p>
+
+  <p class="auto-doc-secao">Informações do Autuado</p>
+  <table class="auto-doc-table">
+    <tr>
+      <td>Nome do(a) autuado(a): {{ auto.contribuinte?.nome }}</td>
+      <td>CNPJ/CPF: {{ auto.contribuinte?.cpfCnpj }}</td>
+    </tr>
+    <tr>
+      <td>Endereço: {{ enderecoAutuado }}</td>
+      <td>Bairro: {{ auto.contribuinte?.bairro }}</td>
+    </tr>
+    <tr>
+      <td>Município: {{ auto.contribuinte?.municipio }}</td>
+      <td>CEP: {{ auto.contribuinte?.cep }}</td>
+    </tr>
+  </table>
+
+  <p class="auto-doc-secao">Local da Autuação</p>
+  <table class="auto-doc-table">
+    <tr>
+      <td>Endereço: {{ enderecoImovel }}</td>
+      <td>Bairro: {{ auto.imovel?.bairro }}</td>
+    </tr>
+    <tr *ngIf="auto.imovel?.inscricao">
+      <td>CEP: {{ auto.imovel?.cep }}</td>
+      <td>Inscrição: {{ auto.imovel?.inscricao }}</td>
+    </tr>
+    <tr *ngIf="!auto.imovel?.inscricao">
+      <td colspan="2">CEP: {{ auto.imovel?.cep }}</td>
+    </tr>
+  </table>
+
+  <p class="auto-doc-secao">Irregularidades Constatadas</p>
+  <table class="auto-doc-table">
+    <tr><td class="justify">{{ auto.irregularidadesConstatadas }}</td></tr>
+  </table>
+
+  <p class="auto-doc-secao">Providências</p>
+  <table class="auto-doc-table">
+    <tr><td class="justify">{{ auto.providencias || '—' }}</td></tr>
+  </table>
+
+  <p class="auto-doc-secao">Dispositivo(s) legal(is) transgredido(s)</p>
+  <table class="auto-doc-table sem-borda">
+    <tr><td class="justify sublinha">{{ auto.dispositivosLegais }}</td></tr>
+  </table>
+
+  <table class="auto-doc-table sem-borda">
+    <tr>
+      <td class="justify sublinha">
+        O não cumprimento do presente auto de fiscalização sujeitará o infrator às penalidades previstas no
+        <strong>{{ auto.penalidades }}</strong>.
+      </td>
+    </tr>
+  </table>
+
+  <p class="auto-doc-paragrafo">
+    O(a) autuado(a) deverá apresentar defesa, por escrito, no Processo Administrativo n° {{ auto.processoAdministrativo }},
+    no prazo máximo de <strong>{{ auto.prazoDefesa }} dias</strong>, a contar da data do recebimento deste.
+  </p>
+
+  <p class="auto-doc-paragrafo">
+    O Auto de Fiscalização, lavrado em três vias, que vai assinado pelo fiscal, pelo representante ou técnico do
+    estabelecimento, e na ausência ou recusa destes últimos, será assinado por duas testemunhas.
+  </p>
+
+  <div class="auto-doc-assinatura">
+    <p class="linha-assinatura">
+      ________________________________________________<br>
+      {{ auto.criador?.nome }}<br>
+      Matrícula: {{ auto.criador?.matricula }}
+    </p>
+
+    <table class="auto-doc-testemunhas" *ngIf="auto.temTestemunhas">
+      <tr>
+        <td>
+          ____________________________________<br>
+          Testemunha 1<br>
+          {{ auto.nomeTestemunha1 }}<br>
+          CPF: {{ auto.cpfTestemunha1 }}
+        </td>
+        <td>
+          ____________________________________<br>
+          Testemunha 2<br>
+          {{ auto.nomeTestemunha2 }}<br>
+          CPF: {{ auto.cpfTestemunha2 }}
+        </td>
+      </tr>
+    </table>
+  </div>
+
+  <table class="auto-doc-ciencia">
+    <tr>
+      <td class="col-assinatura">
+        <p>Assinatura do Autuado:</p>
+      </td>
+      <td class="col-ciencia">
+        <p>Ciente em:</p>
+        <p class="data-linha">&nbsp;&nbsp;&nbsp;/&nbsp;&nbsp;&nbsp;/</p>
+      </td>
+    </tr>
+  </table>
+
+  <div class="auto-doc-actions no-print">
+    <button type="button" (click)="imprimir()" class="btn-imprimir">
+      <i class="fa-solid fa-print"></i> Imprimir / Salvar PDF
+    </button>
+  </div>
+</div>

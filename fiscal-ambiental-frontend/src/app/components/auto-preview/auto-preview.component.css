@@ -1,0 +1,135 @@
+.auto-doc {
+  background: #ffffff;
+  color: #111111;
+  border-radius: 12px;
+  padding: 28px;
+  font-size: 0.85rem;
+  line-height: 1.5;
+}
+
+.auto-doc-titulo,
+.auto-doc-subtitulo {
+  text-align: center;
+  font-weight: 700;
+  font-size: 1rem;
+  margin: 0;
+}
+
+.auto-doc-data {
+  text-align: right;
+  margin: 6px 0 18px;
+  color: #444444;
+}
+
+.auto-doc-secao {
+  font-weight: 700;
+  margin: 18px 0 6px;
+}
+
+.auto-doc-table {
+  width: 100%;
+  border-collapse: collapse;
+  border: 1px solid #000000;
+  margin-bottom: 4px;
+}
+
+.auto-doc-table td {
+  border: 1px solid #000000;
+  padding: 7px 8px;
+  vertical-align: top;
+}
+
+.auto-doc-table.sem-borda {
+  border: none;
+}
+
+.auto-doc-table.sem-borda td {
+  border: none;
+  border-bottom: 1px solid #000000;
+  padding: 9px 2px;
+}
+
+.justify {
+  text-align: justify;
+}
+
+.sublinha {
+  min-height: 1.4em;
+}
+
+.auto-doc-paragrafo {
+  text-align: justify;
+  margin: 16px 0;
+}
+
+.auto-doc-assinatura {
+  margin-top: 36px;
+  text-align: center;
+}
+
+.linha-assinatura {
+  margin: 0 0 24px;
+}
+
+.auto-doc-testemunhas {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 12px;
+}
+
+.auto-doc-testemunhas td {
+  width: 50%;
+  text-align: center;
+  vertical-align: top;
+  padding: 4px 10px;
+}
+
+.auto-doc-ciencia {
+  width: 100%;
+  border-collapse: collapse;
+  border: 1px solid #000000;
+  margin-top: 40px;
+}
+
+.auto-doc-ciencia td {
+  border: 1px solid #000000;
+  padding: 10px;
+  vertical-align: top;
+}
+
+.col-assinatura {
+  width: 75%;
+  height: 70px;
+}
+
+.col-ciencia {
+  width: 25%;
+}
+
+.data-linha {
+  text-align: center;
+  margin-top: 20px;
+}
+
+.auto-doc-actions {
+  margin-top: 24px;
+  text-align: center;
+}
+
+.btn-imprimir {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 20px;
+  border: none;
+  border-radius: 10px;
+  background: linear-gradient(135deg, #8b5cf6 0%, #ec4899 60%, #f97316 100%);
+  color: #ffffff;
+  font-weight: 600;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
+.btn-imprimir:hover {
+  opacity: 0.92;
+}

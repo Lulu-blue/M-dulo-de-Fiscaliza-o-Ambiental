@@ -1,0 +1,64 @@
+<div class="login-wrapper">
+  <div class="login-card animate-fade-in">
+    <div class="brand-header">
+      <div class="brand-icon">
+        <i class="fa-solid fa-leaf"></i>
+      </div>
+      <h2>Fiscalização Ambiental</h2>
+      <p>Sistema de Gestão &amp; Automação de Vistorias</p>
+    </div>
+
+    <form (ngSubmit)="onSubmit()" #loginForm="ngForm" class="login-form">
+      <div *ngIf="errorMessage" class="error-banner">
+        <i class="fa-solid fa-triangle-exclamation"></i>
+        <span>{{ errorMessage }}</span>
+      </div>
+
+      <div class="form-group">
+        <label for="cpf"><i class="fa-solid fa-id-card"></i> CPF do Usuário</label>
+        <input
+          type="text"
+          id="cpf"
+          name="cpf"
+          [(ngModel)]="cpf"
+          required
+          placeholder="000.000.000-00"
+          class="form-control"
+        />
+      </div>
+
+      <div class="form-group">
+        <label for="senha"><i class="fa-solid fa-lock"></i> Senha de Acesso</label>
+        <input
+          type="password"
+          id="senha"
+          name="senha"
+          [(ngModel)]="senha"
+          required
+          placeholder="••••••••"
+          class="form-control"
+        />
+      </div>
+
+      <button type="submit" [disabled]="loading" class="btn btn-primary btn-block">
+        <span *ngIf="!loading"><i class="fa-solid fa-right-to-bracket"></i> Entrar no Sistema</span>
+        <span *ngIf="loading"><i class="fa-solid fa-circle-notch fa-spin"></i> Autenticando...</span>
+      </button>
+
+      <div class="demo-hints">
+        <p><strong>Acesso demonstrativo</strong> · senha <code>Demo@123</code></p>
+        <div class="hint-chips">
+          <button type="button" class="chip" (click)="preencherDemo('00000000000', 'Gestor')">
+            <i class="fa-solid fa-user-tie"></i> Gestor
+          </button>
+          <button type="button" class="chip" (click)="preencherDemo('11111111111', 'Fiscal 1')">
+            <i class="fa-solid fa-user-shield"></i> Fiscal 1
+          </button>
+          <button type="button" class="chip" (click)="preencherDemo('22222222222', 'Fiscal 2')">
+            <i class="fa-solid fa-user-shield"></i> Fiscal 2
+          </button>
+        </div>
+      </div>
+    </form>
+  </div>
+</div>

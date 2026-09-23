@@ -1,0 +1,43 @@
+<div class="assinado-box">
+  <div *ngIf="!temDocumento" class="assinado-upload">
+    <label class="assinado-upload-label" [class.disabled]="enviando">
+      <i class="fa-solid fa-file-arrow-up"></i>
+      <span *ngIf="!enviando">Anexar documento assinado</span>
+      <span *ngIf="enviando">Enviando...</span>
+      <input type="file" (change)="onArquivoSelecionado($event)" [disabled]="enviando" accept=".pdf,.jpg,.jpeg,.png" hidden />
+    </label>
+    <small class="assinado-hint">
+      Anexe o documento impresso, assinado e digitalizado para liberar a pontuação ({{ pontos }} pts).
+    </small>
+  </div>
+
+  <div *ngIf="temDocumento" class="assinado-info">
+    <div class="assinado-linha">
+      <a href="javascript:void(0)" (click)="abrirDocumento()" class="assinado-nome">
+        <i class="fa-solid fa-file-signature"></i> {{ nomeArquivo }}
+      </a>
+      <span class="assinado-badge-pts"><i class="fa-solid fa-check"></i> {{ pontos }} pts</span>
+    </div>
+
+    <div class="assinado-linha">
+      <button
+        *ngIf="podeRemover"
+        type="button"
+        (click)="remover()"
+        [disabled]="removendo"
+        class="btn-remover-assinado"
+      >
+        <i class="fa-solid fa-trash"></i> {{ removendo ? 'Removendo...' : 'Remover' }}
+      </button>
+      <small *ngIf="podeRemover" class="assinado-hint">
+        Pode remover até {{ prazoRemocao | date:'dd/MM/yyyy HH:mm' }}
+      </small>
+      <small *ngIf="!podeRemover && bloqueado" class="assinado-locked">
+        <i class="fa-solid fa-lock"></i> Demanda concluída — documento definitivo
+      </small>
+      <small *ngIf="!podeRemover && !bloqueado" class="assinado-locked">
+        <i class="fa-solid fa-lock"></i> Prazo de remoção (24h) encerrado — documento definitivo
+      </small>
+    </div>
+  </div>
+</div>

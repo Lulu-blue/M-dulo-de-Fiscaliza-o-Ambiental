@@ -1,0 +1,417 @@
+<div class="app-shell">
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <div class="sidebar-logo">
+      <i class="fa-solid fa-leaf"></i>
+    </div>
+
+    <nav class="sidebar-nav">
+      <a class="nav-icon active" title="Visão Geral">
+        <i class="fa-solid fa-grip"></i>
+      </a>
+      <a class="nav-icon" title="Acessar documentos" (click)="abrirDocumentos()">
+        <i class="fa-solid fa-folder-open"></i>
+      </a>
+    </nav>
+
+    <div class="sidebar-bottom">
+      <a class="nav-icon" title="Sair" (click)="logout()">
+        <i class="fa-solid fa-arrow-right-from-bracket"></i>
+      </a>
+    </div>
+  </aside>
+
+  <!-- Main -->
+  <div class="main-area">
+    <header class="topbar">
+      <div class="topbar-title">
+        <h1>Visão Geral</h1>
+        <span>Gestão de demandas &amp; delegação de fiscais</span>
+      </div>
+
+      <div class="topbar-actions">
+        <div class="search-box">
+          <i class="fa-solid fa-magnifying-glass"></i>
+          <input
+            type="text"
+            placeholder="Buscar demanda..."
+            [(ngModel)]="termoBusca"
+            name="termoBusca"
+          />
+        </div>
+
+        <div class="user-chip">
+          <div class="avatar">{{ iniciaisUsuario }}</div>
+          <div class="user-chip-info">
+            <strong>{{ currentUser?.nome }}</strong>
+            <span>Gestor</span>
+          </div>
+        </div>
+
+        <button (click)="logout()" class="icon-btn" title="Sair">
+          <i class="fa-solid fa-arrow-right-from-bracket"></i>
+        </button>
+      </div>
+    </header>
+
+    <main class="content">
+      <div class="content-grid">
+        <!-- Coluna principal -->
+        <div class="main-column">
+          <!-- Hero card -->
+          <div class="hero-card">
+            <div class="hero-icon"><i class="fa-solid fa-folder-open"></i></div>
+            <div class="hero-info">
+              <span class="hero-label">Total de demandas cadastradas</span>
+              <span class="hero-value">{{ demandas.length }}</span>
+            </div>
+            <button (click)="abrirModalNovaDemanda()" class="btn btn-primary">
+              <i class="fa-solid fa-plus"></i> Nova Demanda
+            </button>
+          </div>
+
+          <!-- Status cards -->
+          <div class="status-grid">
+            <div class="status-card status-amber">
+              <div class="status-icon"><i class="fa-solid fa-clock"></i></div>
+              <span class="status-value">{{ contarStatus('PENDENTE') }}</span>
+              <span class="status-label">Pendentes</span>
+            </div>
+            <div class="status-card status-blue">
+              <div class="status-icon"><i class="fa-solid fa-spinner"></i></div>
+              <span class="status-value">{{ contarStatus('EM_ANDAMENTO') }}</span>
+              <span class="status-label">Em andamento</span>
+            </div>
+            <div class="status-card status-green">
+              <div class="status-icon"><i class="fa-solid fa-circle-check"></i></div>
+              <span class="status-value">{{ contarStatus('CONCLUIDO') }}</span>
+              <span class="status-label">Concluídas</span>
+            </div>
+          </div>
+
+          <!-- Tabela -->
+          <div class="table-card" id="demandas-table">
+            <div class="table-header">
+              <h3>Demandas registradas</h3>
+              <span class="count-badge">{{ demandasFiltradas.length }} de {{ demandas.length }}</span>
+            </div>
+
+            <div *ngIf="loading" class="loading-state">
+              <i class="fa-solid fa-spinner fa-spin"></i> Carregando demandas...
+            </div>
+
+            <table *ngIf="!loading && demandasFiltradas.length > 0" class="custom-table">
+              <thead>
+                <tr>
+                  <th>Título / Descrição</th>
+                  <th>Criada em</th>
+                  <th>Status</th>
+                  <th>Fiscal atribuído</th>
+                  <th>Delegar</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr *ngFor="let d of demandasFiltradas">
+                  <td>
+                    <strong class="item-title">{{ d.titulo }}</strong>
+                    <span class="badge-urgencia" *ngIf="d.urgencia" [ngClass]="'urgencia-' + d.urgencia.toLowerCase()">{{ d.urgencia }}</span>
+                    <p class="item-desc">{{ d.descricao }}</p>
+                    <p class="item-local" *ngIf="d.localizacao"><i class="fa-solid fa-location-dot"></i> {{ d.localizacao }}</p>
+                    <div class="item-anexos" *ngIf="d.anexos && d.anexos.length > 0">
+                      <a *ngFor="let a of d.anexos" href="javascript:void(0)" (click)="abrirAnexo(a)" class="anexo-chip" [title]="a.nomeArquivo">
+                        <i class="fa-solid fa-paperclip"></i> {{ a.nomeArquivo }}
+                      </a>
+                    </div>
+                  </td>
+                  <td class="muted">{{ d.dataCriacao | date:'dd/MM/yyyy HH:mm' }}</td>
+                  <td>
+                    <span class="badge" [ngClass]="{
+                      'badge-pendente': d.status === 'PENDENTE',
+                      'badge-em-andamento': d.status === 'EM_ANDAMENTO',
+                      'badge-concluido': d.status === 'CONCLUIDO'
+                    }">{{ d.status }}</span>
+                  </td>
+                  <td>
+                    <div *ngIf="d.fiscalAtribuido" class="fiscal-chip">
+                      <i class="fa-solid fa-user-shield"></i> {{ d.fiscalAtribuido.nome }}
+                    </div>
+                    <span *ngIf="!d.fiscalAtribuido" class="unassigned-chip">Não atribuído</span>
+                  </td>
+                  <td>
+                    <select #fiscalSelect (change)="delegar(d.id!, fiscalSelect.value)" class="form-control form-control-sm">
+                      <option value="">-- Atribuir --</option>
+                      <option *ngFor="let f of fiscais" [value]="f.id" [selected]="d.fiscalAtribuido?.id === f.id">
+                        {{ f.nome }} ({{ f.matricula }})
+                      </option>
+                    </select>
+                  </td>
+                  <td>
+                    <div class="row-actions">
+                      <button *ngIf="d.podeEditar" (click)="abrirModalEdicao(d)" class="btn-icon-edit" title="Editar demanda">
+                        <i class="fa-solid fa-pen"></i>
+                      </button>
+                      <button *ngIf="d.status === 'PENDENTE'" (click)="excluirDemanda(d)" class="btn-icon-delete" title="Excluir demanda">
+                        <i class="fa-solid fa-trash"></i>
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+
+            <div *ngIf="!loading && demandasFiltradas.length === 0" class="empty-state">
+              <i class="fa-solid fa-inbox"></i>
+              <p *ngIf="demandas.length === 0">Nenhuma demanda cadastrada ainda. Clique em "Nova Demanda" para começar.</p>
+              <p *ngIf="demandas.length > 0">Nenhuma demanda encontrada para "{{ termoBusca }}".</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Coluna lateral -->
+        <div class="side-column">
+          <div class="team-card">
+            <div class="team-header">
+              <h3>Equipe de fiscais</h3>
+              <span class="count-badge">{{ fiscais.length }}</span>
+            </div>
+            <div class="team-list">
+              <div class="team-member" *ngFor="let f of fiscais">
+                <div class="avatar avatar-sm">{{ f.nome.charAt(0) }}</div>
+                <div class="team-member-info">
+                  <strong>{{ f.nome }}</strong>
+                  <span>Matrícula {{ f.matricula }}</span>
+                </div>
+                <span class="status-dot" [class.status-dot-off]="f.ativo === false" title="{{ f.ativo === false ? 'Inativo' : 'Ativo' }}"></span>
+              </div>
+              <p *ngIf="fiscais.length === 0" class="muted">Nenhum fiscal cadastrado.</p>
+            </div>
+          </div>
+
+          <div class="ranking-card">
+            <div class="team-header">
+              <h3>Ranking de pontuação</h3>
+            </div>
+            <div class="ranking-list">
+              <div class="ranking-item" *ngFor="let r of ranking; let i = index">
+                <div class="ranking-row" (click)="toggleFiscalExpandido(r.fiscal.id!)">
+                  <span class="ranking-position" [ngClass]="{'pos-1': i === 0, 'pos-2': i === 1, 'pos-3': i === 2}">{{ i + 1 }}º</span>
+                  <div class="avatar avatar-sm">{{ r.fiscal.nome.charAt(0) }}</div>
+                  <div class="ranking-info">
+                    <strong>{{ r.fiscal.nome }}</strong>
+                    <span>{{ r.documentos.length }} documento(s)</span>
+                  </div>
+                  <span class="ranking-pontos">{{ r.totalPontos }} pts</span>
+                  <i class="fa-solid fa-chevron-down ranking-chevron" [class.rotated]="fiscalExpandidoId === r.fiscal.id"></i>
+                </div>
+
+                <div class="ranking-detalhe" *ngIf="fiscalExpandidoId === r.fiscal.id">
+                  <p *ngIf="r.documentos.length === 0" class="muted small">Nenhum documento gerado ainda.</p>
+                  <div class="documento-item" *ngFor="let doc of r.documentos">
+                    <div class="documento-info">
+                      <span class="documento-tipo" [ngClass]="doc.tipo === 'AUTO' ? 'tipo-auto' : 'tipo-relatorio'">
+                        {{ doc.tipo === 'AUTO' ? 'Auto' : 'Relatório' }}
+                      </span>
+                      <div class="documento-texto">
+                        <strong>Nº {{ doc.numeroSequencial }}/{{ doc.ano }}</strong>
+                        <span *ngIf="doc.demandaTitulo">{{ doc.demandaTitulo }}</span>
+                      </div>
+                    </div>
+                    <div class="documento-actions">
+                      <span class="documento-pontos">+{{ doc.pontos }} pts</span>
+                      <a href="javascript:void(0)" (click)="abrirDocumento(doc)" class="documento-link" title="Abrir documento">
+                        <i class="fa-solid fa-arrow-up-right-from-square"></i>
+                      </a>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <p *ngIf="ranking.length === 0" class="muted">Nenhum fiscal cadastrado.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <!-- Modal Criar Demanda -->
+  <div *ngIf="modalAberta" class="modal-backdrop">
+    <div class="modal-card animate-fade-in">
+      <div class="modal-header">
+        <h3><i class="fa-solid fa-plus-circle"></i> Criar Nova Demanda</h3>
+        <button (click)="fecharModalNovaDemanda()" class="btn-close">&times;</button>
+      </div>
+      <form (ngSubmit)="salvarNovaDemanda()" class="modal-body">
+        <div class="form-group">
+          <label for="titulo">Título da Demanda <span class="req">*</span></label>
+          <input
+            type="text"
+            id="titulo"
+            name="titulo"
+            [(ngModel)]="novaDemanda.titulo"
+            required
+            placeholder="Ex: Vistoria em Loteamento Irregular"
+            class="form-control"
+          />
+        </div>
+
+        <div class="form-group">
+          <label for="descricao">Descrição Detalhada <span class="req">*</span></label>
+          <textarea
+            id="descricao"
+            name="descricao"
+            [(ngModel)]="novaDemanda.descricao"
+            required
+            rows="4"
+            placeholder="Descreva as denúncias, endereço e detalhes técnicos..."
+            class="form-control"
+          ></textarea>
+        </div>
+
+        <p class="modal-section-hint">Tudo abaixo é opcional</p>
+
+        <div class="form-row">
+          <div class="form-group col">
+            <label for="localizacao">Localização</label>
+            <input
+              type="text"
+              id="localizacao"
+              name="localizacao"
+              [(ngModel)]="novaDemanda.localizacao"
+              placeholder="Ex: Rua Tal, 123 - Bairro X"
+              class="form-control"
+            />
+          </div>
+
+          <div class="form-group col">
+            <label for="urgencia">Urgência</label>
+            <select id="urgencia" name="urgencia" [(ngModel)]="novaDemanda.urgencia" class="form-control">
+              <option [ngValue]="undefined">-- Não definida --</option>
+              <option value="BAIXA">Baixa</option>
+              <option value="MEDIA">Média</option>
+              <option value="ALTA">Alta</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label for="fiscalResponsavel">Fiscal responsável</label>
+          <select id="fiscalResponsavel" name="fiscalResponsavel" [(ngModel)]="fiscalSelecionadoId" class="form-control">
+            <option value="">-- Delegar depois --</option>
+            <option *ngFor="let f of fiscais" [value]="f.id">{{ f.nome }} ({{ f.matricula }})</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label for="anexoNovaDemanda">Anexo de referência</label>
+          <input
+            type="file"
+            id="anexoNovaDemanda"
+            name="anexoNovaDemanda"
+            (change)="onArquivoNovaDemandaSelecionado($event)"
+            class="form-control"
+          />
+          <small class="field-hint" *ngIf="anexoNovaDemanda">{{ anexoNovaDemanda.name }}</small>
+        </div>
+
+        <div class="modal-footer">
+          <button type="button" (click)="fecharModalNovaDemanda()" class="btn btn-secondary">Cancelar</button>
+          <button type="submit" [disabled]="salvando" class="btn btn-primary">
+            <span *ngIf="!salvando"><i class="fa-solid fa-check"></i> Cadastrar Demanda</span>
+            <span *ngIf="salvando"><i class="fa-solid fa-spinner fa-spin"></i> Salvando...</span>
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal Editar Demanda -->
+  <div *ngIf="modalEdicaoAberta && demandaEmEdicao" class="modal-backdrop">
+    <div class="modal-card animate-fade-in">
+      <div class="modal-header">
+        <h3><i class="fa-solid fa-pen"></i> Editar Demanda</h3>
+        <button (click)="fecharModalEdicao()" class="btn-close">&times;</button>
+      </div>
+      <form (ngSubmit)="salvarEdicaoDemanda()" class="modal-body">
+        <div class="form-group">
+          <label for="edTitulo">Título da Demanda <span class="req">*</span></label>
+          <input
+            type="text"
+            id="edTitulo"
+            name="edTitulo"
+            [(ngModel)]="demandaEmEdicao.titulo"
+            required
+            class="form-control"
+          />
+        </div>
+
+        <div class="form-group">
+          <label for="edDescricao">Descrição Detalhada <span class="req">*</span></label>
+          <textarea
+            id="edDescricao"
+            name="edDescricao"
+            [(ngModel)]="demandaEmEdicao.descricao"
+            required
+            rows="4"
+            class="form-control"
+          ></textarea>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group col">
+            <label for="edLocalizacao">Localização</label>
+            <input
+              type="text"
+              id="edLocalizacao"
+              name="edLocalizacao"
+              [(ngModel)]="demandaEmEdicao.localizacao"
+              placeholder="Ex: Rua Tal, 123 - Bairro X"
+              class="form-control"
+            />
+          </div>
+
+          <div class="form-group col">
+            <label for="edUrgencia">Urgência</label>
+            <select id="edUrgencia" name="edUrgencia" [(ngModel)]="demandaEmEdicao.urgencia" class="form-control">
+              <option [ngValue]="undefined">-- Não definida --</option>
+              <option value="BAIXA">Baixa</option>
+              <option value="MEDIA">Média</option>
+              <option value="ALTA">Alta</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          <button type="button" (click)="fecharModalEdicao()" class="btn btn-secondary">Cancelar</button>
+          <button type="submit" [disabled]="editando" class="btn btn-primary">
+            <span *ngIf="!editando"><i class="fa-solid fa-check"></i> Salvar Alterações</span>
+            <span *ngIf="editando"><i class="fa-solid fa-spinner fa-spin"></i> Salvando...</span>
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal Detalhe do Documento (Auto/Relatório) -->
+  <div *ngIf="modalDocumentoAberto" class="modal-backdrop">
+    <div class="modal-card animate-fade-in" [class.modal-card-wide]="tipoDocumentoSelecionado === 'AUTO' || tipoDocumentoSelecionado === 'RELATORIO'">
+      <div class="modal-header no-print">
+        <h3>
+          <i class="fa-solid" [ngClass]="tipoDocumentoSelecionado === 'AUTO' ? 'fa-file-signature' : 'fa-file-lines'"></i>
+          {{ tipoDocumentoSelecionado === 'AUTO' ? 'Auto de Fiscalização' : 'Relatório de Vistoria' }}
+        </h3>
+        <button (click)="fecharModalDocumento()" class="btn-close">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div *ngIf="carregandoDocumento" class="loading-state">
+          <i class="fa-solid fa-spinner fa-spin"></i> Carregando...
+        </div>
+
+        <ng-container *ngIf="!carregandoDocumento && documentoSelecionado">
+          <app-auto-preview *ngIf="tipoDocumentoSelecionado === 'AUTO'" [auto]="asAuto(documentoSelecionado)"></app-auto-preview>
+          <app-relatorio-preview *ngIf="tipoDocumentoSelecionado === 'RELATORIO'" [relatorio]="asRelatorio(documentoSelecionado)"></app-relatorio-preview>
+        </ng-container>
+      </div>
+    </div>
+  </div>
+</div>

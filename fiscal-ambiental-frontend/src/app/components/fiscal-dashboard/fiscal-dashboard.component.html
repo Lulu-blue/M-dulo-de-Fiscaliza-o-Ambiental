@@ -1,0 +1,601 @@
+<div class="app-shell">
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <div class="sidebar-logo">
+      <i class="fa-solid fa-leaf"></i>
+    </div>
+
+    <nav class="sidebar-nav">
+      <a class="nav-icon active" title="Fila de Trabalho">
+        <i class="fa-solid fa-grip"></i>
+      </a>
+      <a class="nav-icon" title="Minha Pontuação" (click)="abrirMinhaPontuacao()">
+        <i class="fa-solid fa-chart-column"></i>
+      </a>
+    </nav>
+
+    <div class="sidebar-bottom">
+      <a class="nav-icon" title="Sair" (click)="logout()">
+        <i class="fa-solid fa-arrow-right-from-bracket"></i>
+      </a>
+    </div>
+  </aside>
+
+  <!-- Main -->
+  <div class="main-area">
+    <header class="topbar">
+      <div class="topbar-title">
+        <h1>Fila de Trabalho</h1>
+        <span>Selecione uma demanda para emitir Autos de Fiscalização e Relatórios de Vistoria</span>
+      </div>
+
+      <div class="topbar-actions">
+        <div class="search-box">
+          <i class="fa-solid fa-magnifying-glass"></i>
+          <input
+            type="text"
+            placeholder="Buscar demanda..."
+            [(ngModel)]="termoBusca"
+            name="termoBusca"
+          />
+        </div>
+
+        <div class="user-chip">
+          <div class="avatar">{{ iniciaisUsuario }}</div>
+          <div class="user-chip-info">
+            <strong>{{ currentUser?.nome }}</strong>
+            <span>Fiscal</span>
+          </div>
+        </div>
+
+        <button (click)="logout()" class="icon-btn" title="Sair">
+          <i class="fa-solid fa-arrow-right-from-bracket"></i>
+        </button>
+      </div>
+    </header>
+
+    <main class="content">
+      <div class="content-grid" id="fila-trabalho">
+        <!-- Coluna da fila -->
+        <div class="queue-card">
+          <div class="queue-header">
+            <h3>Minhas demandas</h3>
+            <span class="count-badge">{{ demandasFiltradas.length }} de {{ demandasDaAbaAtiva.length }}</span>
+          </div>
+
+          <div class="tipo-tabs">
+            <button class="tipo-tab" [class.active]="abaAtiva === 'ATIVAS'" (click)="selecionarAba('ATIVAS')">
+              Fila de Trabalho <span class="tab-count">{{ demandasAtivas.length }}</span>
+            </button>
+            <button class="tipo-tab" [class.active]="abaAtiva === 'CONCLUIDAS'" (click)="selecionarAba('CONCLUIDAS')">
+              Concluídas <span class="tab-count">{{ demandasConcluidas.length }}</span>
+            </button>
+          </div>
+
+          <div *ngIf="loading" class="loading-state">
+            <i class="fa-solid fa-spinner fa-spin"></i> Carregando suas demandas...
+          </div>
+
+          <div *ngIf="!loading && demandasDaAbaAtiva.length === 0" class="empty-state">
+            <i class="fa-solid fa-folder-check"></i>
+            <p *ngIf="abaAtiva === 'ATIVAS'">Você não possui nenhuma demanda atribuída no momento.</p>
+            <p *ngIf="abaAtiva === 'CONCLUIDAS'">Nenhuma demanda concluída ainda.</p>
+          </div>
+
+          <div *ngIf="!loading && demandasDaAbaAtiva.length > 0 && demandasFiltradas.length === 0" class="empty-state">
+            <i class="fa-solid fa-magnifying-glass"></i>
+            <p>Nenhuma demanda encontrada para "{{ termoBusca }}".</p>
+          </div>
+
+          <div class="queue-list" *ngIf="!loading && demandasFiltradas.length > 0">
+            <div
+              *ngFor="let d of demandasFiltradas"
+              class="queue-item"
+              [class.active]="demandaSelecionada?.id === d.id"
+              (click)="selecionarDemanda(d)"
+            >
+              <div class="queue-item-header">
+                <strong class="queue-title">{{ d.titulo }}</strong>
+                <span class="badge" [ngClass]="{
+                  'badge-pendente': d.status === 'PENDENTE',
+                  'badge-em-andamento': d.status === 'EM_ANDAMENTO',
+                  'badge-concluido': d.status === 'CONCLUIDO'
+                }">{{ d.status }}</span>
+              </div>
+              <p class="queue-desc">{{ d.descricao }}</p>
+              <div class="queue-date">
+                <i class="fa-solid fa-calendar"></i> Criada em {{ d.dataCriacao | date:'dd/MM/yyyy' }}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Coluna de ação -->
+        <div class="action-card">
+          <div *ngIf="!demandaSelecionada" class="select-prompt">
+            <i class="fa-solid fa-hand-pointer"></i>
+            <h3>Selecione uma demanda da fila</h3>
+            <p>Clique em um dos itens à esquerda para abrir as opções de emissão de documento e anexos.</p>
+          </div>
+
+          <div *ngIf="demandaSelecionada" class="action-body animate-fade-in">
+            <div class="demanda-detail">
+              <span class="status-tag">{{ demandaSelecionada.status }}</span>
+              <span class="badge-urgencia" *ngIf="demandaSelecionada.urgencia" [ngClass]="'urgencia-' + demandaSelecionada.urgencia.toLowerCase()">{{ demandaSelecionada.urgencia }}</span>
+              <h2>{{ demandaSelecionada.titulo }}</h2>
+              <p class="desc">{{ demandaSelecionada.descricao }}</p>
+              <p class="local" *ngIf="demandaSelecionada.localizacao"><i class="fa-solid fa-location-dot"></i> {{ demandaSelecionada.localizacao }}</p>
+            </div>
+
+            <div class="action-buttons">
+              <button *ngIf="autosDemanda.length === 0" (click)="abrirModalAuto()" class="btn btn-primary">
+                <i class="fa-solid fa-file-contract"></i> Emitir Auto de Fiscalização
+              </button>
+              <button *ngIf="autosDemanda.length > 0 && !autoJaAssinado" (click)="abrirModalEditarAuto(autosDemanda[0])" class="btn btn-primary">
+                <i class="fa-solid fa-pen"></i> Editar Auto de Fiscalização
+              </button>
+              <span *ngIf="autoJaAssinado" class="pontos-fixos">
+                <i class="fa-solid fa-lock"></i> Auto já assinado — não pode mais ser editado
+              </span>
+
+              <button *ngIf="relatoriosDemanda.length === 0" (click)="abrirModalRelatorio()" class="btn btn-secondary">
+                <i class="fa-solid fa-file-lines"></i> Emitir Relatório de Vistoria
+              </button>
+              <button *ngIf="relatoriosDemanda.length > 0 && !relatorioJaAssinado" (click)="abrirModalEditarRelatorio(relatoriosDemanda[0])" class="btn btn-secondary">
+                <i class="fa-solid fa-pen"></i> Editar Relatório de Vistoria
+              </button>
+              <span *ngIf="relatorioJaAssinado" class="pontos-fixos">
+                <i class="fa-solid fa-lock"></i> Relatório já assinado — não pode mais ser editado
+              </span>
+            </div>
+            <p class="field-hint" *ngIf="autosDemanda.length > 0 || relatoriosDemanda.length > 0">
+              Cada demanda só pode ter 1 Auto e 1 Relatório. Para corrigir dados, edite o documento existente (ou exclua-o, se ainda não tiver documento assinado anexado).
+            </p>
+
+            <div class="finalizar-demanda-box" *ngIf="!demandaConcluida && (autoJaAssinado || relatorioJaAssinado)">
+              <button
+                type="button"
+                (click)="finalizarDemanda()"
+                [disabled]="!podeFinalizarDemanda"
+                class="btn btn-finalizar"
+              >
+                <i class="fa-solid fa-flag-checkered"></i> Finalizar Demanda
+              </button>
+              <small class="field-hint" *ngIf="!podeFinalizarDemanda">
+                Anexe o documento assinado do Auto e do Relatório para poder finalizar.
+              </small>
+              <small class="field-hint" *ngIf="podeFinalizarDemanda">
+                Depois de finalizar, o Auto e o Relatório não poderão mais ser alterados.
+              </small>
+            </div>
+
+            <div class="demanda-concluida-banner" *ngIf="demandaConcluida">
+              <i class="fa-solid fa-circle-check"></i>
+              <div>
+                <strong>Demanda concluída</strong>
+                <span>O Auto e o Relatório desta demanda não podem mais ser alterados.</span>
+              </div>
+            </div>
+
+            <!-- Documentos emitidos -->
+            <div class="documentos-emitidos-section" *ngIf="autosDemanda.length > 0 || relatoriosDemanda.length > 0">
+              <h4><i class="fa-solid fa-file-signature"></i> Documentos Emitidos</h4>
+
+              <div class="documento-emitido-item" *ngFor="let auto of autosDemanda">
+                <div class="documento-emitido-header">
+                  <span class="documento-emitido-tipo tipo-auto">Auto</span>
+                  <strong>Nº {{ auto.numeroSequencial }}/{{ auto.ano }}</strong>
+                  <button type="button" (click)="verDocumentoAuto(auto)" class="btn-ver-documento">
+                    <i class="fa-solid fa-download"></i> Ver / Baixar
+                  </button>
+                  <button type="button" *ngIf="!auto.documentoAssinadoNome" (click)="excluirAuto(auto)" class="btn-excluir-documento">
+                    <i class="fa-solid fa-trash"></i> Excluir
+                  </button>
+                </div>
+                <app-documento-assinado-upload
+                  tipo="AUTO"
+                  [documentoId]="auto.id!"
+                  [nomeArquivo]="auto.documentoAssinadoNome"
+                  [enviadoEm]="auto.documentoAssinadoEnviadoEm"
+                  [pontos]="25"
+                  [bloqueado]="demandaConcluida"
+                  (atualizado)="onAutoAtualizado($any($event))"
+                ></app-documento-assinado-upload>
+              </div>
+
+              <div class="documento-emitido-item" *ngFor="let relatorio of relatoriosDemanda">
+                <div class="documento-emitido-header">
+                  <span class="documento-emitido-tipo tipo-relatorio">Relatório</span>
+                  <strong>Nº {{ relatorio.numeroSequencial }}/{{ relatorio.ano }}</strong>
+                  <button type="button" (click)="verDocumentoRelatorio(relatorio)" class="btn-ver-documento">
+                    <i class="fa-solid fa-download"></i> Ver / Baixar
+                  </button>
+                  <button type="button" *ngIf="!relatorio.documentoAssinadoNome" (click)="excluirRelatorio(relatorio)" class="btn-excluir-documento">
+                    <i class="fa-solid fa-trash"></i> Excluir
+                  </button>
+                </div>
+                <app-documento-assinado-upload
+                  tipo="RELATORIO"
+                  [documentoId]="relatorio.id!"
+                  [nomeArquivo]="relatorio.documentoAssinadoNome"
+                  [enviadoEm]="relatorio.documentoAssinadoEnviadoEm"
+                  [pontos]="60"
+                  [bloqueado]="demandaConcluida"
+                  (atualizado)="onRelatorioAtualizado($any($event))"
+                ></app-documento-assinado-upload>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <!-- Modal Emissão de Auto de Fiscalização -->
+  <div *ngIf="modalAutoAberta" class="modal-backdrop">
+    <div class="modal-card animate-fade-in">
+      <div class="modal-header">
+        <h3><i class="fa-solid fa-file-contract"></i> {{ editandoAutoId ? 'Editar' : 'Emitir' }} Auto de Fiscalização</h3>
+        <button (click)="fecharModalAuto()" class="btn-close">&times;</button>
+      </div>
+      <form (ngSubmit)="emitirAutoSubmit()" class="modal-body">
+        <div class="form-group">
+          <label>Processo Administrativo <span class="req">*</span></label>
+          <input type="text" [(ngModel)]="novoAuto.processoAdministrativo" name="proc" required placeholder="Ex: 00123/2026" class="form-control" />
+        </div>
+
+        <div class="form-group">
+          <label>Irregularidades Constatadas <span class="req">*</span></label>
+          <textarea [(ngModel)]="novoAuto.irregularidadesConstatadas" name="irreg" required rows="3" placeholder="Descreva as infrações constatadas..." class="form-control"></textarea>
+        </div>
+
+        <div class="form-group">
+          <label>Providências</label>
+          <textarea [(ngModel)]="novoAuto.providencias" name="providencias" rows="2" placeholder="Providências adotadas ou recomendadas..." class="form-control"></textarea>
+        </div>
+
+        <div class="form-group">
+          <label>Dispositivo(s) Legal(is) Transgredido(s) <span class="req">*</span></label>
+          <textarea [(ngModel)]="novoAuto.dispositivosLegais" name="dispositivos" required rows="2" placeholder="Ex: Art. 45 da Lei Municipal nº 1234/2020..." class="form-control"></textarea>
+        </div>
+
+        <div class="form-group">
+          <label>Penalidades previstas no <span class="req">*</span></label>
+          <input type="text" [(ngModel)]="novoAuto.penalidades" name="penalidades" required placeholder="Ex: Art. 60 da Lei Municipal nº 1234/2020" class="form-control" />
+        </div>
+
+        <div class="form-row">
+          <div class="form-group col">
+            <label>Prazo de Defesa (dias) <span class="req">*</span></label>
+            <input type="number" [(ngModel)]="novoAuto.prazoDefesa" name="prazo" required class="form-control" />
+          </div>
+          <div class="form-group col">
+            <label>Pontos Produtividade</label>
+            <div class="pontos-fixos"><i class="fa-solid fa-lock"></i> 25 pts (fixo)</div>
+          </div>
+        </div>
+
+        <h5 class="section-title"><i class="fa-solid fa-user-group"></i> Testemunhas</h5>
+        <div class="form-group">
+          <label>Tem testemunhas?</label>
+          <select [(ngModel)]="novoAuto.temTestemunhas" name="temTestemunhas" class="form-control">
+            <option [ngValue]="false">Não</option>
+            <option [ngValue]="true">Sim</option>
+          </select>
+        </div>
+
+        <ng-container *ngIf="novoAuto.temTestemunhas">
+          <div class="form-group">
+            <label class="field-hint-label">Preencher a partir de um fiscal cadastrado (opcional)</label>
+            <select #selT1 (change)="selecionarTestemunha1(selT1.value)" class="form-control">
+              <option value="">-- Selecionar fiscal --</option>
+              <option *ngFor="let f of fiscaisDisponiveis" [value]="f.id">{{ f.nome }} ({{ f.matricula }})</option>
+            </select>
+          </div>
+          <div class="form-row">
+            <div class="form-group col">
+              <input type="text" [(ngModel)]="novoAuto.nomeTestemunha1" name="nomeT1" placeholder="Nome da testemunha 1" class="form-control" />
+            </div>
+            <div class="form-group col">
+              <input type="text" [(ngModel)]="novoAuto.cpfTestemunha1" name="cpfT1" placeholder="CPF da testemunha 1" class="form-control" />
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label class="field-hint-label">Preencher a partir de um fiscal cadastrado (opcional)</label>
+            <select #selT2 (change)="selecionarTestemunha2(selT2.value)" class="form-control">
+              <option value="">-- Selecionar fiscal --</option>
+              <option *ngFor="let f of fiscaisDisponiveis" [value]="f.id">{{ f.nome }} ({{ f.matricula }})</option>
+            </select>
+          </div>
+          <div class="form-row">
+            <div class="form-group col">
+              <input type="text" [(ngModel)]="novoAuto.nomeTestemunha2" name="nomeT2" placeholder="Nome da testemunha 2" class="form-control" />
+            </div>
+            <div class="form-group col">
+              <input type="text" [(ngModel)]="novoAuto.cpfTestemunha2" name="cpfT2" placeholder="CPF da testemunha 2" class="form-control" />
+            </div>
+          </div>
+        </ng-container>
+
+        <h5 class="section-title"><i class="fa-solid fa-user"></i> Contribuinte</h5>
+        <div class="form-group busca-existente">
+          <label class="field-hint-label">Buscar contribuinte já cadastrado (opcional)</label>
+          <input type="text" placeholder="Nome ou CPF/CNPJ..." (input)="buscarContribuinte($any($event.target).value)" class="form-control" />
+          <div class="busca-resultados" *ngIf="resultadosBuscaContribuinte.length > 0">
+            <div class="busca-resultado-item" *ngFor="let c of resultadosBuscaContribuinte" (click)="selecionarContribuinteExistente(c)">
+              <strong>{{ c.nome }}</strong>
+              <span>{{ c.cpfCnpj }}</span>
+            </div>
+          </div>
+        </div>
+        <p class="field-hint" *ngIf="contribuinteForm.id">
+          <i class="fa-solid fa-pen"></i> Reaproveitando um contribuinte já cadastrado — os dados abaixo (exceto CPF/CNPJ) vão atualizar esse cadastro.
+          <button type="button" (click)="limparSelecaoContribuinte()" class="btn-link">Cadastrar um novo em vez disso</button>
+        </p>
+        <div class="form-row">
+          <div class="form-group col">
+            <input type="text" [(ngModel)]="contribuinteForm.nome" name="cNome" placeholder="Nome / Razão Social" required class="form-control" />
+          </div>
+          <div class="form-group col">
+            <input type="text" [(ngModel)]="contribuinteForm.cpfCnpj" name="cCpf" placeholder="CPF / CNPJ" required [disabled]="!!contribuinteForm.id" class="form-control" />
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group col">
+            <label>Rua do autuado <span class="req">*</span></label>
+            <input type="text" [(ngModel)]="contribuinteForm.rua" name="cRua" required class="form-control" />
+          </div>
+          <div class="form-group col">
+            <label>Número <span class="req">*</span></label>
+            <input type="text" [(ngModel)]="contribuinteForm.numero" name="cNumero" required class="form-control" />
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group col">
+            <label>Bairro <span class="req">*</span></label>
+            <input type="text" [(ngModel)]="contribuinteForm.bairro" name="cBairro" required class="form-control" />
+          </div>
+          <div class="form-group col">
+            <label>Município <span class="req">*</span></label>
+            <input type="text" [(ngModel)]="contribuinteForm.municipio" name="cMunicipio" required class="form-control" />
+          </div>
+        </div>
+        <div class="form-group">
+          <label>CEP <span class="req">*</span></label>
+          <input type="text" [(ngModel)]="contribuinteForm.cep" name="cCep" required class="form-control" />
+        </div>
+
+        <div class="form-group busca-existente" *ngIf="!imovelBloqueadoAuto && imoveisDoContribuinte.length > 0">
+          <label class="field-hint-label">Imóveis já cadastrados para este contribuinte</label>
+          <div class="busca-resultados">
+            <div class="busca-resultado-item" *ngFor="let i of imoveisDoContribuinte" (click)="selecionarImovelExistente(i)">
+              <strong>{{ i.inscricao }}</strong>
+              <span>{{ i.rua }}, {{ i.numero }} - {{ i.bairro }}</span>
+            </div>
+          </div>
+          <small class="field-hint">Clique em um deles para preencher o Imóvel abaixo (ou corrigir os dados, se precisar).</small>
+        </div>
+
+        <h5 class="section-title"><i class="fa-solid fa-building"></i> Imóvel</h5>
+        <p class="field-hint" *ngIf="imovelBloqueadoAuto">
+          <i class="fa-solid fa-lock"></i> Preenchido automaticamente a partir do Relatório de Vistoria já emitido para esta demanda — o Auto tem que usar o mesmo imóvel.
+        </p>
+        <div class="form-group busca-existente" *ngIf="!imovelBloqueadoAuto">
+          <label class="field-hint-label">Buscar imóvel já cadastrado (opcional)</label>
+          <input type="text" placeholder="Inscrição..." (input)="buscarImovel($any($event.target).value)" class="form-control" />
+          <div class="busca-resultados" *ngIf="resultadosBuscaImovel.length > 0">
+            <div class="busca-resultado-item" *ngFor="let i of resultadosBuscaImovel" (click)="selecionarImovelExistente(i)">
+              <strong>{{ i.inscricao }}</strong>
+              <span>{{ i.rua }}, {{ i.numero }} - {{ i.bairro }}</span>
+            </div>
+          </div>
+        </div>
+        <p class="field-hint" *ngIf="!imovelBloqueadoAuto && imovelForm.id">
+          <i class="fa-solid fa-pen"></i> Reaproveitando um imóvel já cadastrado — os dados abaixo vão atualizar esse cadastro.
+          <button type="button" (click)="limparSelecaoImovel()" class="btn-link">Cadastrar um novo em vez disso</button>
+        </p>
+        <div class="form-row">
+          <div class="form-group col">
+            <label>Rua do imóvel <span class="req">*</span></label>
+            <input type="text" [(ngModel)]="imovelForm.rua" name="iRua" required [disabled]="imovelBloqueadoAuto" class="form-control" />
+          </div>
+          <div class="form-group col">
+            <label>Número <span class="req">*</span></label>
+            <input type="text" [(ngModel)]="imovelForm.numero" name="iNumero" required [disabled]="imovelBloqueadoAuto" class="form-control" />
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group col">
+            <label>Bairro do Imóvel <span class="req">*</span></label>
+            <input type="text" [(ngModel)]="imovelForm.bairro" name="iBairro" required [disabled]="imovelBloqueadoAuto" class="form-control" />
+          </div>
+          <div class="form-group col">
+            <label>CEP <span class="req">*</span></label>
+            <input type="text" [(ngModel)]="imovelForm.cep" name="iCep" required [disabled]="imovelBloqueadoAuto" class="form-control" />
+          </div>
+        </div>
+        <div class="form-group">
+          <label>Inscrição</label>
+          <input type="text" [(ngModel)]="imovelForm.inscricao" name="iInsc" placeholder="Inscrição Municipal" [disabled]="imovelBloqueadoAuto" class="form-control" />
+        </div>
+
+        <div class="modal-footer">
+          <button type="button" (click)="fecharModalAuto()" class="btn btn-secondary">Cancelar</button>
+          <button type="submit" [disabled]="salvandoAuto" class="btn btn-primary">
+            <span *ngIf="!salvandoAuto && !editandoAutoId"><i class="fa-solid fa-stamp"></i> Emitir Auto (Gerar Nº Sequencial)</span>
+            <span *ngIf="!salvandoAuto && editandoAutoId"><i class="fa-solid fa-check"></i> Salvar Alterações</span>
+            <span *ngIf="salvandoAuto"><i class="fa-solid fa-spinner fa-spin"></i> Salvando...</span>
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal Emissão de Relatório -->
+  <div *ngIf="modalRelatorioAberta" class="modal-backdrop">
+    <div class="modal-card modal-card-wide animate-fade-in">
+      <div class="modal-header">
+        <h3><i class="fa-solid fa-file-lines"></i> {{ editandoRelatorioId ? 'Editar' : 'Emitir' }} Relatório de Vistoria</h3>
+        <button (click)="fecharModalRelatorio()" class="btn-close">&times;</button>
+      </div>
+      <form (ngSubmit)="emitirRelatorioSubmit()" class="modal-body">
+        <h5 class="section-title"><i class="fa-solid fa-building"></i> Imóvel Vistoriado</h5>
+        <p class="field-hint" *ngIf="imovelBloqueadoRelatorio">
+          <i class="fa-solid fa-lock"></i> Preenchido automaticamente a partir do Auto de Fiscalização já emitido para esta demanda — o Relatório tem que usar o mesmo imóvel.
+        </p>
+        <div class="form-group busca-existente" *ngIf="!imovelBloqueadoRelatorio">
+          <label class="field-hint-label">Buscar imóvel já cadastrado (opcional)</label>
+          <input type="text" placeholder="Inscrição..." (input)="buscarImovelRelatorio($any($event.target).value)" class="form-control" />
+          <div class="busca-resultados" *ngIf="resultadosBuscaImovelRelatorio.length > 0">
+            <div class="busca-resultado-item" *ngFor="let i of resultadosBuscaImovelRelatorio" (click)="selecionarImovelExistenteRelatorio(i)">
+              <strong>{{ i.inscricao }}</strong>
+              <span>{{ i.rua }}, {{ i.numero }} - {{ i.bairro }}</span>
+            </div>
+          </div>
+          <small class="field-hint">Se o imóvel ainda não existir, preencha os campos abaixo — o cadastro é feito automaticamente ao emitir.</small>
+        </div>
+        <p class="field-hint" *ngIf="!imovelBloqueadoRelatorio && relatorioImovelForm.id">
+          <i class="fa-solid fa-pen"></i> Reaproveitando um imóvel já cadastrado — os dados abaixo vão atualizar esse cadastro.
+          <button type="button" (click)="limparSelecaoImovelRelatorio()" class="btn-link">Cadastrar um novo em vez disso</button>
+        </p>
+
+        <div class="form-row">
+          <div class="form-group col">
+            <label>Rua do imóvel <span class="req">*</span></label>
+            <input type="text" [(ngModel)]="relatorioImovelForm.rua" name="relImvRua" required [disabled]="imovelBloqueadoRelatorio" class="form-control" />
+          </div>
+          <div class="form-group col">
+            <label>Número <span class="req">*</span></label>
+            <input type="text" [(ngModel)]="relatorioImovelForm.numero" name="relImvNumero" required [disabled]="imovelBloqueadoRelatorio" class="form-control" />
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group col">
+            <label>Bairro <span class="req">*</span></label>
+            <input type="text" [(ngModel)]="relatorioImovelForm.bairro" name="relImvBairro" required [disabled]="imovelBloqueadoRelatorio" class="form-control" />
+          </div>
+          <div class="form-group col">
+            <label>CEP <span class="req">*</span></label>
+            <input type="text" [(ngModel)]="relatorioImovelForm.cep" name="relImvCep" required [disabled]="imovelBloqueadoRelatorio" class="form-control" />
+          </div>
+        </div>
+        <div class="form-group">
+          <label>Inscrição <span class="req">*</span></label>
+          <input type="text" [(ngModel)]="relatorioImovelForm.inscricao" name="relatorioInscricao" required [disabled]="imovelBloqueadoRelatorio" placeholder="Ex: INSC-000123" class="form-control" />
+        </div>
+
+        <div class="form-group">
+          <label>Data e Hora da Vistoria <span class="req">*</span></label>
+          <input type="datetime-local" [(ngModel)]="novoRelatorio.dataHoraVistoria" name="dtVistoria" required class="form-control" />
+        </div>
+
+        <div class="form-row">
+          <div class="form-group col">
+            <label>Para atendimento</label>
+            <input type="text" [(ngModel)]="novoRelatorio.atendimento" name="relAtendimento" placeholder="Ex: Ofício nº 123/2026" class="form-control" />
+          </div>
+          <div class="form-group col">
+            <label>Assunto</label>
+            <input type="text" [(ngModel)]="novoRelatorio.assunto" name="relAssunto" placeholder="Título da denúncia/solicitação" class="form-control" />
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label>Processo</label>
+          <input type="text" [(ngModel)]="novoRelatorio.processoAdministrativo" name="relProcesso" placeholder="Ex: 00123/2026" class="form-control" />
+        </div>
+
+        <div class="form-group">
+          <label>Texto da Vistoria (o que foi constatado) <span class="req">*</span></label>
+          <textarea
+            [(ngModel)]="novoRelatorio.textoVistoria"
+            name="relTextoVistoria"
+            required
+            rows="3"
+            placeholder="Ex: falta de limpeza e conservação de imóvel não edificado, inexistência de cercamento..."
+            class="form-control"
+          ></textarea>
+          <small class="field-hint">Completa a frase: "...verificamos que houve {{ '{' }}este texto{{ '}' }}."</small>
+        </div>
+
+        <h5 class="section-title"><i class="fa-solid fa-camera"></i> Fotos da Vistoria</h5>
+        <div class="imagem-relatorio-item" *ngFor="let img of imagensRelatorio; let i = index">
+          <div class="form-row">
+            <div class="form-group col">
+              <input type="file" accept="image/*" (change)="onImagemRelatorioSelecionada(i, $event)" class="form-control" />
+            </div>
+            <div class="form-group col">
+              <input type="text" [(ngModel)]="img.legenda" [name]="'imgLegenda' + i" placeholder="Legenda da foto (opcional)" class="form-control" />
+            </div>
+          </div>
+          <img *ngIf="img.previewUrl" [src]="img.previewUrl" class="imagem-relatorio-preview" alt="Prévia" />
+          <button type="button" (click)="removerLinhaImagemRelatorio(i)" class="btn-remover-imagem">
+            <i class="fa-solid fa-trash"></i> Remover foto
+          </button>
+        </div>
+        <button type="button" (click)="adicionarLinhaImagemRelatorio()" class="btn btn-secondary btn-sm">
+          <i class="fa-solid fa-plus"></i> Adicionar foto
+        </button>
+
+        <div class="form-group" style="margin-top: 16px;">
+          <label>Pontos Produtividade Base</label>
+          <div class="pontos-fixos"><i class="fa-solid fa-lock"></i> 60 pts (fixo)</div>
+        </div>
+
+        <div class="modal-footer">
+          <button type="button" (click)="fecharModalRelatorio()" class="btn btn-secondary">Cancelar</button>
+          <button type="submit" [disabled]="salvandoRelatorio" class="btn btn-primary">
+            <span *ngIf="!salvandoRelatorio && !editandoRelatorioId"><i class="fa-solid fa-check"></i> Gerar Relatório</span>
+            <span *ngIf="!salvandoRelatorio && editandoRelatorioId"><i class="fa-solid fa-check"></i> Salvar Alterações</span>
+            <span *ngIf="salvandoRelatorio"><i class="fa-solid fa-spinner fa-spin"></i> Salvando...</span>
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal Documento Gerado -->
+  <div *ngIf="modalDocumentoGeradoAberto" class="modal-backdrop">
+    <div class="modal-card modal-card-wide animate-fade-in">
+      <div class="modal-header no-print">
+        <h3>
+          <i class="fa-solid" [ngClass]="modoVisualizacaoDocumento ? 'fa-file-signature' : 'fa-circle-check'"></i>
+          {{ tipoDocumentoGerado === 'AUTO' ? 'Auto de Fiscalização' : 'Relatório de Vistoria' }}
+          <ng-container *ngIf="!modoVisualizacaoDocumento">emitido com sucesso</ng-container>
+        </h3>
+        <button (click)="fecharModalDocumentoGerado()" class="btn-close">&times;</button>
+      </div>
+      <div class="modal-body">
+        <ng-container *ngIf="tipoDocumentoGerado === 'AUTO' && autoGerado">
+          <app-auto-preview [auto]="autoGerado"></app-auto-preview>
+          <app-documento-assinado-upload
+            *ngIf="!modoVisualizacaoDocumento"
+            class="no-print"
+            tipo="AUTO"
+            [documentoId]="autoGerado.id!"
+            [nomeArquivo]="autoGerado.documentoAssinadoNome"
+            [enviadoEm]="autoGerado.documentoAssinadoEnviadoEm"
+            [pontos]="25"
+            (atualizado)="onAutoAtualizado($any($event))"
+          ></app-documento-assinado-upload>
+        </ng-container>
+
+        <ng-container *ngIf="tipoDocumentoGerado === 'RELATORIO' && relatorioGerado">
+          <app-relatorio-preview [relatorio]="relatorioGerado"></app-relatorio-preview>
+          <app-documento-assinado-upload
+            *ngIf="!modoVisualizacaoDocumento"
+            class="no-print"
+            tipo="RELATORIO"
+            [documentoId]="relatorioGerado.id!"
+            [nomeArquivo]="relatorioGerado.documentoAssinadoNome"
+            [enviadoEm]="relatorioGerado.documentoAssinadoEnviadoEm"
+            [pontos]="60"
+            (atualizado)="onRelatorioAtualizado($any($event))"
+          ></app-documento-assinado-upload>
+        </ng-container>
+      </div>
+    </div>
+  </div>
+</div>

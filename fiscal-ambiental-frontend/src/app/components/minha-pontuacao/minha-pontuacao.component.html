@@ -1,0 +1,111 @@
+<div class="page-shell">
+  <header class="topbar">
+    <div class="topbar-title">
+      <h1><i class="fa-solid fa-chart-column"></i> Minha Pontuação</h1>
+      <span>Sua produtividade: pontos por dia e o total acumulado</span>
+    </div>
+
+    <div class="topbar-actions">
+      <div class="user-chip">
+        <div class="avatar">{{ currentUser?.nome?.charAt(0) }}</div>
+        <div class="user-chip-info">
+          <strong>{{ currentUser?.nome }}</strong>
+          <span>Fiscal</span>
+        </div>
+      </div>
+      <button (click)="logout()" class="icon-btn" title="Sair">
+        <i class="fa-solid fa-arrow-right-from-bracket"></i>
+      </button>
+    </div>
+  </header>
+
+  <main class="content">
+    <div *ngIf="loading" class="loading-state">
+      <i class="fa-solid fa-spinner fa-spin"></i> Carregando sua pontuação...
+    </div>
+
+    <ng-container *ngIf="!loading">
+      <div class="stats-row">
+        <div class="stat-card stat-destaque">
+          <i class="fa-solid fa-trophy"></i>
+          <div>
+            <strong>{{ totalPontos }}</strong>
+            <span>Pontos no total</span>
+          </div>
+        </div>
+        <div class="stat-card">
+          <i class="fa-solid fa-file-signature"></i>
+          <div>
+            <strong>{{ documentos.length }}</strong>
+            <span>Documentos assinados</span>
+          </div>
+        </div>
+        <div class="stat-card">
+          <i class="fa-solid fa-calendar-day"></i>
+          <div>
+            <strong>{{ mediaDiaria }}</strong>
+            <span>Média/dia (últimos 14 dias)</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="chart-card">
+        <div class="chart-header">
+          <h3>Pontuação diária</h3>
+          <span class="count-badge">Últimos 14 dias</span>
+        </div>
+
+        <div class="chart-bars">
+          <div class="chart-bar-col" *ngFor="let d of grafico">
+            <span class="chart-bar-valor" *ngIf="d.pontos > 0">{{ d.pontos }}</span>
+            <div class="chart-bar-track">
+              <div
+                class="chart-bar-fill"
+                [class.tem-pontos]="d.pontos > 0"
+                [style.height.%]="(d.pontos / maxPontosGrafico) * 100"
+              ></div>
+            </div>
+            <span class="chart-bar-label">{{ d.label }}</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="table-card">
+        <div class="table-header">
+          <h3>Documentos que geraram pontos</h3>
+          <span class="count-badge">{{ documentos.length }}</span>
+        </div>
+
+        <table *ngIf="documentos.length > 0" class="custom-table">
+          <thead>
+            <tr>
+              <th>Tipo</th>
+              <th>Número</th>
+              <th>Demanda</th>
+              <th>Pontos</th>
+              <th>Assinado em</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let d of documentos">
+              <td>
+                <span class="documento-tipo" [ngClass]="d.tipo === 'AUTO' ? 'tipo-auto' : 'tipo-relatorio'">
+                  {{ d.tipo === 'AUTO' ? 'Auto' : 'Relatório' }}
+                </span>
+              </td>
+              <td>{{ d.numeroSequencial }}/{{ d.ano }}</td>
+              <td>{{ d.demandaTitulo || '—' }}</td>
+              <td><span class="documento-pontos">+{{ d.pontos }} pts</span></td>
+              <td class="muted">{{ d.dataAssinatura | date:'dd/MM/yyyy HH:mm' }}</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <div *ngIf="documentos.length === 0" class="empty-state">
+          <i class="fa-solid fa-inbox"></i>
+          <p>Você ainda não anexou nenhum documento assinado.</p>
+        </div>
+      </div>
+    </ng-container>
+  </main>
+</div>

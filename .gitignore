@@ -1,0 +1,11 @@
+# Editor/IDE (config local, não deve ir pro repositório)
+.idea/
+.vscode/
+.claude/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Backups locais de edições anteriores (não são código do projeto)
+*.bak-clean

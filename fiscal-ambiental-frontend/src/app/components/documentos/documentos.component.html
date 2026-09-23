@@ -1,0 +1,103 @@
+<div class="page-shell">
+  <header class="topbar">
+    <div class="topbar-title">
+      <h1><i class="fa-solid fa-folder-tree"></i> Documentos Emitidos</h1>
+      <span>Todos os Autos de Fiscalização e Relatórios gerados pelos fiscais</span>
+    </div>
+
+    <div class="topbar-actions">
+      <div class="user-chip">
+        <div class="avatar">{{ currentUser?.nome?.charAt(0) }}</div>
+        <div class="user-chip-info">
+          <strong>{{ currentUser?.nome }}</strong>
+          <span>Gestor</span>
+        </div>
+      </div>
+      <button (click)="logout()" class="icon-btn" title="Sair">
+        <i class="fa-solid fa-arrow-right-from-bracket"></i>
+      </button>
+    </div>
+  </header>
+
+  <main class="content">
+    <div class="filters-bar">
+      <div class="search-box">
+        <i class="fa-solid fa-magnifying-glass"></i>
+        <input type="text" placeholder="Buscar por demanda, fiscal ou número..." [(ngModel)]="termoBusca" name="termoBusca" />
+      </div>
+
+      <div class="tipo-tabs">
+        <button class="tipo-tab" [class.active]="filtroTipo === 'TODOS'" (click)="filtroTipo = 'TODOS'">Todos</button>
+        <button class="tipo-tab" [class.active]="filtroTipo === 'AUTO'" (click)="filtroTipo = 'AUTO'">Autos</button>
+        <button class="tipo-tab" [class.active]="filtroTipo === 'RELATORIO'" (click)="filtroTipo = 'RELATORIO'">Relatórios</button>
+      </div>
+    </div>
+
+    <div class="table-card">
+      <div class="table-header">
+        <h3>Documentos</h3>
+        <span class="count-badge">{{ documentosFiltrados.length }} de {{ documentos.length }}</span>
+      </div>
+
+      <div *ngIf="loading" class="loading-state">
+        <i class="fa-solid fa-spinner fa-spin"></i> Carregando documentos...
+      </div>
+
+      <table *ngIf="!loading && documentosFiltrados.length > 0" class="custom-table">
+        <thead>
+          <tr>
+            <th>Tipo</th>
+            <th>Número</th>
+            <th>Demanda</th>
+            <th>Fiscal(is)</th>
+            <th>Pontos</th>
+            <th>Gerado em</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let d of documentosFiltrados">
+            <td>
+              <span class="documento-tipo" [ngClass]="d.tipo === 'AUTO' ? 'tipo-auto' : 'tipo-relatorio'">
+                {{ d.tipo === 'AUTO' ? 'Auto' : 'Relatório' }}
+              </span>
+            </td>
+            <td>{{ d.numeroSequencial }}/{{ d.ano }}</td>
+            <td>{{ d.demandaTitulo || '—' }}</td>
+            <td>{{ d.fiscalNomes || '—' }}</td>
+            <td><span class="documento-pontos">{{ d.pontos }} pts</span></td>
+            <td class="muted">{{ d.dataGeracao | date:'dd/MM/yyyy HH:mm' }}</td>
+            <td>
+              <button (click)="abrirDetalhe(d)" class="btn-icon-view" title="Abrir documento">
+                <i class="fa-solid fa-eye"></i>
+              </button>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+
+      <div *ngIf="!loading && documentosFiltrados.length === 0" class="empty-state">
+        <i class="fa-solid fa-inbox"></i>
+        <p *ngIf="documentos.length === 0">Nenhum documento emitido ainda.</p>
+        <p *ngIf="documentos.length > 0">Nenhum documento encontrado para os filtros aplicados.</p>
+      </div>
+    </div>
+  </main>
+
+  <!-- Modal Detalhe do Documento (Auto/Relatório) -->
+  <div *ngIf="modalAberto" class="modal-backdrop">
+    <div class="modal-card animate-fade-in" [class.modal-card-wide]="documentoSelecionado?.tipo === 'AUTO' || documentoSelecionado?.tipo === 'RELATORIO'">
+      <div class="modal-header no-print">
+        <h3>
+          <i class="fa-solid" [ngClass]="documentoSelecionado?.tipo === 'AUTO' ? 'fa-file-signature' : 'fa-file-lines'"></i>
+          {{ documentoSelecionado?.tipo === 'AUTO' ? 'Auto de Fiscalização' : 'Relatório de Vistoria' }}
+        </h3>
+        <button (click)="fecharDetalhe()" class="btn-close">&times;</button>
+      </div>
+      <div class="modal-body" *ngIf="documentoSelecionado">
+        <app-auto-preview *ngIf="documentoSelecionado.tipo === 'AUTO'" [auto]="asAuto(documentoSelecionado)"></app-auto-preview>
+        <app-relatorio-preview *ngIf="documentoSelecionado.tipo === 'RELATORIO'" [relatorio]="asRelatorio(documentoSelecionado)"></app-relatorio-preview>
+      </div>
+    </div>
+  </div>
+</div>

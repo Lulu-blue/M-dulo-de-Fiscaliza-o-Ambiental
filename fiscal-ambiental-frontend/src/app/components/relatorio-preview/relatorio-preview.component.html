@@ -1,0 +1,56 @@
+<div class="rel-doc documento-imprimivel">
+  <app-documento-header></app-documento-header>
+
+  <h2 class="rel-doc-titulo">RELATÓRIO FISCAL – Nº {{ relatorio.numeroSequencial }}/{{ relatorio.ano }}</h2>
+  <h3 class="rel-doc-subtitulo">Fiscalização Ambiental</h3>
+  <p class="rel-doc-data">{{ relatorio.dataGeracao | date:'dd/MM/yyyy' }}</p>
+
+  <div class="rel-doc-identificacao">
+    <p *ngIf="relatorio.atendimento"><strong>Para atendimento:</strong> {{ relatorio.atendimento }}</p>
+    <p *ngIf="relatorio.assunto"><strong>Assunto:</strong> {{ relatorio.assunto }}</p>
+    <p *ngIf="relatorio.processoAdministrativo"><strong>Processo:</strong> {{ relatorio.processoAdministrativo }}</p>
+  </div>
+
+  <p class="rel-doc-secao">Local da Autuação</p>
+  <table class="rel-doc-table">
+    <tr>
+      <td>
+        <div>Logradouro: {{ enderecoImovel || '—' }}</div>
+        <div>Bairro: {{ relatorio.imovel?.bairro || '—' }}</div>
+      </td>
+      <td>{{ inscricaoLabel }}: {{ relatorio.imovel?.inscricao || relatorio.imovel?.cep || '—' }}</td>
+    </tr>
+  </table>
+
+  <div class="rel-doc-corpo">
+    <p>Prezado(a),</p>
+    <p class="rel-doc-paragrafo-recuo">
+      informamos que em vistoria{{ textoDataHoraVistoria }} ao local indicado, verificamos que houve
+      {{ relatorio.textoVistoria }}.
+    </p>
+  </div>
+
+  <div class="rel-doc-imagens" *ngIf="relatorio.imagens && relatorio.imagens.length > 0">
+    <div class="rel-doc-imagem-item" *ngFor="let img of relatorio.imagens">
+      <img [src]="img.imagemBase64" alt="Foto da vistoria" />
+      <p class="rel-doc-imagem-legenda" *ngIf="img.legenda">{{ img.legenda }}</p>
+    </div>
+  </div>
+
+  <p class="rel-doc-paragrafo-recuo">Sem mais para o momento, estamos à disposição para maiores esclarecimentos.</p>
+
+  <div class="rel-doc-assinatura">
+    <p class="rel-doc-atenciosamente">Atenciosamente,</p>
+    <p class="linha-assinatura">
+      ________________________________________________<br>
+      <strong>{{ relatorio.criador?.nome }}</strong><br>
+      Matrícula: {{ relatorio.criador?.matricula }}
+    </p>
+  </div>
+
+  <div class="rel-doc-actions no-print">
+    <button type="button" (click)="imprimir()" class="btn-imprimir">
+      <i class="fa-solid fa-print"></i> Imprimir / Salvar PDF
+    </button>
+  </div>
+</div>
