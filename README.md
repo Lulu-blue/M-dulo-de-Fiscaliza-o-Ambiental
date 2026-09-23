@@ -3,8 +3,8 @@
 ## O que é este projeto
 
 Aplicação web full-stack de controle processual e fluxo de tarefas, inspirada livremente na
-estrutura de dados e no fluxo de trabalho do sistema público real **SEMAC** (Secretaria de Estado
-de Meio Ambiente e Desenvolvimento Sustentável), construída do zero como peça de portfólio
+estrutura de dados e no fluxo de trabalho do sistema público real **SEMAC** (Secretaria Municipal
+do Meio Ambiente e do Cuidado Animal), construída do zero como peça de portfólio
 técnico — **sem reutilização de código ou dados reais** daquele sistema, só de padrões de
 arquitetura.
 
@@ -20,6 +20,45 @@ controle de acesso por cargo (RBAC) em duas camadas, geração de numeração se
 (sem condição de corrida, mesmo com dois fiscais emitindo documentos no mesmo milissegundo), e
 uma boa quantidade de regras de negócio não triviais construídas e corrigidas de forma iterativa,
 detalhadas mais abaixo.
+
+## Visão geral em um diagrama
+Como uma ação na tela atravessa o sistema inteiro, do navegador até o banco:
+
+```mermaid
+flowchart TB
+    subgraph U["👤 Usuários"]
+        G["Gestor"]
+        F["Fiscal"]
+    end
+
+    subgraph FE["🅰️ Frontend — Angular 22 (:4200)"]
+        R["Rotas + authGuard<br/>/gestor · /documentos<br/>/fiscal · /minha-pontuacao"]
+        C["Componentes<br/>(dashboards, previews, upload)"]
+        S["Services HTTP<br/>(auto, relatorio, demanda...)"]
+        I["authInterceptor<br/>injeta Bearer JWT"]
+        R --> C --> S --> I
+    end
+
+    subgraph BE["🍃 Backend — Spring Boot 3 (:8080)"]
+        J["JwtAuthenticationFilter"]
+        SC["SecurityConfig<br/>RBAC por rota"]
+        CT["Controllers<br/>Auth · Gestor · Fiscal · Autos<br/>Relatórios · Imóveis · Anexos"]
+        SV["Services<br/>regras de negócio + checagem de posse"]
+        RP["Repositories<br/>Spring Data JPA"]
+        J --> SC --> CT --> SV --> RP
+    end
+
+    subgraph DB["🐘 PostgreSQL"]
+        T["Tabelas<br/>(schema via Flyway V1–V14)"]
+        FN["gerar_numero_sequencial()<br/>+ numeros_descartados"]
+    end
+
+    G --> R
+    F --> R
+    I -- "REST / JSON" --> J
+    RP --> T
+    SV -. "numeração atômica" .-> FN
+```
 
 ## Como rodar o projeto
 
@@ -150,6 +189,51 @@ Spring Security quanto no `authGuard` do Angular):
 
 ## Como o sistema funciona (fluxo ponta a ponta)
 
+```mermaid
+sequenceDiagram
+    autonumber
+    actor G as Gestor
+    actor F as Fiscal
+    participant API as API Spring Boot
+    participant DB as PostgreSQL
+
+    G->>API: POST /api/gestor/demandas
+    API->>DB: salva Demanda (PENDENTE)
+    G->>API: PUT /demandas/{id}/delegar/{fiscalId}
+    API->>DB: status → EM_ANDAMENTO
+
+    F->>API: GET /api/fiscal/demandas (fila de trabalho)
+    par Auto de Fiscalização
+        F->>API: POST /api/fiscal/autos
+        API->>DB: gerar_numero_sequencial('AUTO_FISCALIZACAO', ano)
+        DB-->>API: nº único
+    and Relatório de Vistoria
+        F->>API: POST /api/fiscal/relatorios
+        API->>DB: gerar_numero_sequencial('RELATORIO', ano)
+        DB-->>API: nº único
+    end
+    Note over API,DB: Auto e Relatório sempre apontam<br/>para o mesmo Imóvel
+
+    F->>API: POST .../documento-assinado (Auto e Relatório)
+    API-->>F: +25 pts (Auto) · +60 pts (Relatório)
+
+    F->>API: POST /api/fiscal/demandas/{id}/finalizar
+    API->>DB: status → CONCLUIDO (documentos travados)
+    G->>API: GET /api/gestor/ranking-fiscais
+```
+
+O ciclo de vida de uma Demanda, resumido:
+
+```mermaid
+stateDiagram-v2
+    direction LR
+    [*] --> PENDENTE: Gestor cria
+    PENDENTE --> EM_ANDAMENTO: Gestor delega a um Fiscal
+    EM_ANDAMENTO --> EM_ANDAMENTO: Fiscal emite Auto/Relatório<br/>e anexa os assinados
+    EM_ANDAMENTO --> CONCLUIDO: Fiscal finaliza<br/>(Auto + Relatório assinados)
+    CONCLUIDO --> [*]: somente leitura
+```
+
 1. **Gestor cria uma Demanda** (título, descrição, localização/urgência opcionais) e delega a um
    Fiscal ativo — o status passa de `PENDENTE` para `EM_ANDAMENTO`.
 2. **Fiscal abre a fila de trabalho**, seleciona a demanda, e emite o **Auto de Fiscalização**
@@ -182,6 +266,34 @@ Spring Security quanto no `authGuard` do Angular):
   mesmo criou, mesmo em rotas que não são exclusivas de um cargo (ex.: `GET /api/autos/{id}` é
   acessível a qualquer usuário autenticado, mas o próprio endpoint verifica se quem está pedindo
   é o Gestor ou o criador daquele documento específico).
+
+```mermaid
+sequenceDiagram
+    participant A as Angular
+    participant Auth as AuthController
+    participant JF as JwtAuthenticationFilter
+    participant SC as SecurityConfig
+    participant C as Controller / Service
+
+    A->>Auth: POST /api/auth/login (CPF + senha)
+    Auth-->>A: JWT com o cargo (GESTOR ou FISCAL)
+    Note over A: authInterceptor guarda o token e<br/>envia "Authorization: Bearer ..." em toda requisição
+
+    A->>JF: GET /api/fiscal/autos/por-demanda/{id}
+    JF->>JF: valida assinatura e extrai o cargo
+    JF->>SC: 1ª camada: a rota aceita esse cargo?
+    alt cargo errado
+        SC-->>A: 403 Forbidden
+    else cargo certo
+        SC->>C: 2ª camada: esse usuário é dono do documento?
+        alt não é o criador (e não é Gestor)
+            C-->>A: 403 Forbidden (proteção contra IDOR)
+        else é o criador ou Gestor
+            C-->>A: 200 OK + dados
+        end
+    end
+```
+
 - **Numeração sequencial atômica**: cada Auto/Relatório recebe um número único por tipo+ano,
   gerado por uma função nativa do PostgreSQL (`gerar_numero_sequencial`) chamada dentro de uma
   transação, garantindo que dois fiscais emitindo documentos ao mesmo tempo nunca recebam o mesmo
@@ -205,6 +317,24 @@ Spring Security quanto no `authGuard` do Angular):
 
 Um Auto e um Relatório sempre pertencem a exatamente uma Demanda (no máximo 1 de cada), e sempre
 apontam para o mesmo Imóvel quando emitidos para a mesma Demanda.
+
+```mermaid
+erDiagram
+    USUARIO ||--o{ DEMANDA : "cria (Gestor)"
+    USUARIO |o--o{ DEMANDA : "recebe (Fiscal)"
+    DEMANDA ||--o| AUTO_FISCALIZACAO : "tem no máx. 1"
+    DEMANDA ||--o| RELATORIO : "tem no máx. 1"
+    DEMANDA ||--o{ ANEXO : possui
+    USUARIO ||--o{ AUTO_FISCALIZACAO : emite
+    USUARIO ||--o{ RELATORIO : emite
+    USUARIO }o--o{ RELATORIO : "participa (fiscais)"
+    USUARIO ||--o{ ANEXO : envia
+    IMOVEL ||--o{ AUTO_FISCALIZACAO : "vistoriado em"
+    IMOVEL ||--o{ RELATORIO : "vistoriado em"
+    CONTRIBUINTE ||--o{ AUTO_FISCALIZACAO : autuado
+    CONTRIBUINTE |o--o{ IMOVEL : "proprietário"
+    RELATORIO ||--o{ RELATORIO_IMAGEM : fotos
+```
 
 ## Documentação formal
 
@@ -322,6 +452,18 @@ fiscal ainda pode removê-lo (e perde a pontuação de volta) para corrigir algo
 (Auto ou Relatório) só pode ser excluído enquanto não tiver o documento assinado anexado; ao
 excluir, o número sequencial volta para a fila de reuso do banco (`numeros_descartados`) em vez
 de ser desperdiçado.
+
+```mermaid
+stateDiagram-v2
+    direction LR
+    [*] --> Emitido: Fiscal emite<br/>(recebe nº sequencial)
+    Emitido --> Assinado: anexa documento assinado<br/>(+25 Auto / +60 Relatório)
+    Assinado --> Emitido: remove assinado em até 24h<br/>(pontos estornados)
+    Emitido --> Excluido: exclui documento
+    Excluido --> [*]: nº volta para<br/>numeros_descartados
+    Assinado --> Travado: demanda finalizada
+    Travado --> [*]
+```
 
 Referências de código: `anexarDocumentoAssinado`/`removerDocumentoAssinado`/`excluirAuto`/
 `excluirRelatorio` em `AutoFiscalizacaoService`/`RelatorioService`; `NumeracaoService.descartarNumero`.
